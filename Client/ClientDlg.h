@@ -7,6 +7,7 @@
 #include "CameraDS.h"
 #include "VideoDec.h"
 #include "VideoEnc.h"
+#include "UDPSession.h"
 
 // CClientDlg 对话框
 class CClientDlg : public CDialog
@@ -27,10 +28,7 @@ public:
 	void ProcessDecodeData(BYTE* pData, UINT nLen);
 
 	static void	VEncodeCB(BYTE* pData, UINT nLen, void* lpParam);
-	void ProcessEncodeData(BYTE* pData, UINT nLen);
-
-
-	
+	void ProcessEncodeData(BYTE* pData, UINT nLen);	
 
 	protected:
 	virtual void DoDataExchange(CDataExchange* pDX);	// DDX/DDV 支持
@@ -48,6 +46,9 @@ protected:
 
 	CCameraDS m_CamDS;
 
+	CUDPSession m_Sess;
+	int m_nSessID;
+
 	// 生成的消息映射函数
 	virtual BOOL OnInitDialog();
 	afx_msg void OnSysCommand(UINT nID, LPARAM lParam);
@@ -59,4 +60,7 @@ public:
 	CComboBox m_comboCam;
 	afx_msg void OnBnClickedButtonOpen();
 	afx_msg void OnBnClickedButtonClose();
+
+	static void OnUDPDataCB(int sockid, char *data, int len, int ip, int port, void* param);
+	void OnRecvFrom(int sockid, char *data, int len, int ip, int port);
 };

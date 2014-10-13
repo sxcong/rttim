@@ -31,6 +31,7 @@ CVideoEnc::CVideoEnc()
 	avcodec_register_all();
     av_register_all();
 	m_pParam = NULL;
+	c = NULL;
 }
 
 CVideoEnc::~CVideoEnc()

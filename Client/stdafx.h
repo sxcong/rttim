@@ -51,6 +51,11 @@ extern "C"
 #pragma comment(lib, "swresample.lib")
 #pragma comment(lib, "swscale.lib")
 
+#include "pthread.h"
+#pragma comment(lib, "pthread.lib")
+
+#include <winsock2.h>
+typedef  int socklen_t;
 
 
 

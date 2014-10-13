@@ -45,7 +45,26 @@ END_MESSAGE_MAP()
 // CClientDlg 对话框
 
 
-
+ 
+int InitSockets()    
+{    
+#ifdef WIN32    
+    WORD version;    
+    WSADATA wsaData;    
+    version = MAKEWORD(1, 1);    
+    return (WSAStartup(version, &wsaData) == 0);    
+#else    
+    return TRUE;    
+#endif    
+}    
+  
+void CleanupSockets()    
+{    
+#ifdef WIN32    
+    WSACleanup();    
+#endif    
+}    
+  
 
 CClientDlg::CClientDlg(CWnd* pParent /*=NULL*/)
 	: CDialog(CClientDlg::IDD, pParent)
@@ -53,12 +72,15 @@ CClientDlg::CClientDlg(CWnd* pParent /*=NULL*/)
 	m_hIcon = AfxGetApp()->LoadIcon(IDR_MAINFRAME);
 	m_pLocal = NULL;
 	m_pRemote = NULL;
+	m_nSessID = -1;
+	InitSockets();
 }
 
 CClientDlg::~CClientDlg()
 {
 	SAFE_DELETE(m_pLocal);
 	SAFE_DELETE(m_pRemote);
+	CleanupSockets();
 }
 
 
@@ -121,9 +143,6 @@ BOOL CClientDlg::OnInitDialog()
 	}
 	else
 	{
-
-		
-
 		//获取所有摄像头的名称
 		for(int i = 0; i < m_iCamCount; i++)
 		{
@@ -226,6 +245,13 @@ void CClientDlg::OnBnClickedButtonOpen()
 	// TODO: 在此添加控件通知处理程序代码
 	//pf = fopen("c:\\rec.264", "wb");
 
+	m_nSessID = m_Sess.Open(5500, OnUDPDataCB, this);
+	if (m_nSessID < 0)
+	{
+		AfxMessageBox("open 5500 failed!");
+		return;
+	}
+
 	m_enc.Enc_Init(320, 240, 20, 400000, VEncodeCB, this);
 	m_dec.Dec_Init(320, 240, 20, 400000, VDecodeCB, this);
 
@@ -256,6 +282,7 @@ void CClientDlg::OnBnClickedButtonClose()
 	m_CamDS.CloseCamera();
 	m_enc.Enc_UnInit();
 	m_dec.Dec_UnInit();
+	m_Sess.Close();
 //	fclose(pf);
 }
 
@@ -297,7 +324,21 @@ void CClientDlg::ProcessDecodeData(BYTE* pData, UINT nLen)
 
 void CClientDlg::ProcessEncodeData(BYTE* pData, UINT nLen)
 {
-	m_dec.decode_frame(pData, nLen);
+	int ret = m_Sess.Send((char*)pData, nLen, inet_addr("127.0.0.1"), 5500);
+	TRACE("send ret = %d\n", ret);
 }
 
+void CClientDlg::OnUDPDataCB(int sockid, char *data, int len, int ip, int port, void* param)
+{
+	CClientDlg* pThis = (CClientDlg*)param;
+	pThis->OnRecvFrom(sockid, data, len ,ip , port);
+}
 
+void CClientDlg::OnRecvFrom(int sockid, char *data, int len, int ip, int port)
+{
+	if (sockid == m_nSessID)
+	{
+		TRACE("recv ret = %d\n", len);
+		m_dec.decode_frame((BYTE*)data, len);
+	}
+}
