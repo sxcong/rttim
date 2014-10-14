@@ -189,6 +189,10 @@
 			UniqueIdentifier="{4FC737F1-C7A5-4376-A066-2A32D752A2FF}"
 			>
 			<File
+				RelativePath=".\buffer.cpp"
+				>
+			</File>
+			<File
 				RelativePath=".\CameraDS.cpp"
 				>
 			</File>
@@ -198,6 +202,10 @@
 			</File>
 			<File
 				RelativePath=".\ClientDlg.cpp"
+				>
+			</File>
+			<File
+				RelativePath=".\global.cpp"
 				>
 			</File>
 			<File
@@ -219,6 +227,14 @@
 						UsePrecompiledHeader="1"
 					/>
 				</FileConfiguration>
+			</File>
+			<File
+				RelativePath=".\UDPSession.cpp"
+				>
+			</File>
+			<File
+				RelativePath=".\UDPSock.cpp"
+				>
 			</File>
 			<File
 				RelativePath=".\VideoDec.cpp"
@@ -251,6 +267,14 @@
 				>
 			</File>
 			<File
+				RelativePath=".\evbuffer.h"
+				>
+			</File>
+			<File
+				RelativePath=".\global.h"
+				>
+			</File>
+			<File
 				RelativePath=".\Resource.h"
 				>
 			</File>
@@ -260,6 +284,14 @@
 			</File>
 			<File
 				RelativePath=".\targetver.h"
+				>
+			</File>
+			<File
+				RelativePath=".\UDPSession.h"
+				>
+			</File>
+			<File
+				RelativePath=".\UDPSock.h"
 				>
 			</File>
 			<File

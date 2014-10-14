@@ -63,4 +63,5 @@ public:
 
 	static void OnUDPDataCB(int sockid, char *data, int len, int ip, int port, void* param);
 	void OnRecvFrom(int sockid, char *data, int len, int ip, int port);
+	afx_msg void OnBnClickedButton1();
 };

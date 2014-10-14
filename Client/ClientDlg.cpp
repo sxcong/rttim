@@ -4,11 +4,22 @@
 #include "stdafx.h"
 #include "Client.h"
 #include "ClientDlg.h"
+#include "global.h"
 
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
 #endif
+
+
+enum
+{
+	CMD_GET_SELF_PUBLIC_IP_PORT = 1001,
+	CMD_RE_GET_SELF_PUBLIC_IP_PORT = 1002,
+	CMD_GET_DEST_PUBLIC_IP_PORT = 1003,
+	CMD_RE_GET_DEST_PUBLIC_IP_PORT = 1004,
+	CMD_DATA = 1005
+};
 
 
 // 用于应用程序“关于”菜单项的 CAboutDlg 对话框
@@ -78,6 +89,7 @@ CClientDlg::CClientDlg(CWnd* pParent /*=NULL*/)
 
 CClientDlg::~CClientDlg()
 {
+	m_Sess.Close();
 	SAFE_DELETE(m_pLocal);
 	SAFE_DELETE(m_pRemote);
 	CleanupSockets();
@@ -99,6 +111,7 @@ BEGIN_MESSAGE_MAP(CClientDlg, CDialog)
 	ON_BN_CLICKED(IDOK, &CClientDlg::OnBnClickedOk)
 	ON_BN_CLICKED(IDC_BUTTON_OPEN, &CClientDlg::OnBnClickedButtonOpen)
 	ON_BN_CLICKED(IDC_BUTTON_CLOSE, &CClientDlg::OnBnClickedButtonClose)
+	ON_BN_CLICKED(IDC_BUTTON1, &CClientDlg::OnBnClickedButton1)
 END_MESSAGE_MAP()
 
 
@@ -164,7 +177,7 @@ BOOL CClientDlg::OnInitDialog()
 
 	m_comboCam.SetCurSel(0);
 
-	MoveWindow(0, 0, 600, 520);
+	MoveWindow(0, 0, 660, 520);
 
 	m_pLocal = new CVideoWnd(this);
 	m_pLocal->Create(IDD_VIDEO, CWnd::FromHandle(m_hWnd));
@@ -176,7 +189,15 @@ BOOL CClientDlg::OnInitDialog()
 	m_pRemote->Create(IDD_VIDEO, CWnd::FromHandle(m_hWnd));
 	m_pRemote->ShowWindow(SW_SHOW);
 
-	m_pRemote->MoveWindow(0, 250, 320, 240);
+	m_pRemote->MoveWindow(330, 0, 320, 240);
+
+
+	m_nSessID = m_Sess.Open(5500, OnUDPDataCB, this);
+	if (m_nSessID < 0)
+	{
+		AfxMessageBox("open 5500 failed!");
+		exit(0);
+	}
 	
 
 	return TRUE;  // 除非将焦点设置到控件，否则返回 TRUE
@@ -245,12 +266,7 @@ void CClientDlg::OnBnClickedButtonOpen()
 	// TODO: 在此添加控件通知处理程序代码
 	//pf = fopen("c:\\rec.264", "wb");
 
-	m_nSessID = m_Sess.Open(5500, OnUDPDataCB, this);
-	if (m_nSessID < 0)
-	{
-		AfxMessageBox("open 5500 failed!");
-		return;
-	}
+	
 
 	m_enc.Enc_Init(320, 240, 20, 400000, VEncodeCB, this);
 	m_dec.Dec_Init(320, 240, 20, 400000, VDecodeCB, this);
@@ -282,7 +298,7 @@ void CClientDlg::OnBnClickedButtonClose()
 	m_CamDS.CloseCamera();
 	m_enc.Enc_UnInit();
 	m_dec.Dec_UnInit();
-	m_Sess.Close();
+	
 //	fclose(pf);
 }
 
@@ -334,11 +350,107 @@ void CClientDlg::OnUDPDataCB(int sockid, char *data, int len, int ip, int port, 
 	pThis->OnRecvFrom(sockid, data, len ,ip , port);
 }
 
+string ip_int2char(uint32_t ip)
+{
+	sockaddr_in addr;
+	memset(&addr, 0, sizeof(sockaddr_in));
+	addr.sin_addr.s_addr = ip;
+	addr.sin_family = AF_INET;
+	string temp = inet_ntoa(addr.sin_addr);
+	return temp;
+}
+
+
 void CClientDlg::OnRecvFrom(int sockid, char *data, int len, int ip, int port)
 {
-	if (sockid == m_nSessID)
+	//if (sockid == m_nSessID)
+	//{
+	//	TRACE("recv ret = %d\n", len);
+	//	m_dec.decode_frame((BYTE*)data, len);
+	//}
+
+	CPackIn pack;
+	pack.SetContent(data, len);
+	int nCmd;
+	pack >> nCmd;
+	
+	switch(nCmd)
 	{
-		TRACE("recv ret = %d\n", len);
-		m_dec.decode_frame((BYTE*)data, len);
+	case CMD_RE_GET_SELF_PUBLIC_IP_PORT:
+		{
+			int nID = 0;
+			int nErr = 0;
+			int ip = 0; 
+			int port = 0;
+			pack >> nID;
+			pack >> nErr;  //0 is success
+			pack >> ip;
+			pack >> port;
+			TRACE("ip = %d,ip = %s, port = %d\n", ip,ip_int2char(ip).c_str(), port);
+		}
+		break;
+	case CMD_GET_DEST_PUBLIC_IP_PORT:
+		break;
 	}
+}
+
+DWORD GetLocalAddr()
+{
+	char szHostName[256];
+	memset(szHostName, '\0', sizeof( szHostName ));
+	if (gethostname(szHostName, sizeof(szHostName)))
+	{
+		//AfxMessageBox("取本地IP失败");
+		return -1;
+	}
+	//AfxMessageBox(szHostName);
+
+	sockaddr_in  m_sin;
+	struct hostent* lpHostEnt = gethostbyname(szHostName);
+	if ( !lpHostEnt )
+	{
+		//AfxMessageBox("取本地IP失败");
+		return -1;
+	}
+	m_sin.sin_addr.s_addr = ((LPIN_ADDR)lpHostEnt->h_addr)->s_addr;
+
+	
+	DWORD dwSelfLocalIP = m_sin.sin_addr.s_addr;
+#if 1
+	//for test
+	{
+	in_addr ia;
+	ia.s_addr = dwSelfLocalIP;
+	char* str = inet_ntoa(ia);
+	OutputDebugString(str);
+	OutputDebugString("\r\n");
+	}
+#endif
+
+	return dwSelfLocalIP;
+}
+void CClientDlg::OnBnClickedButton1()
+{
+	// TODO: 在此添加控件通知处理程序代码
+
+	CString szUid;
+	GetDlgItem(IDC_EDIT_UID)->GetWindowTextA(szUid);
+
+	int nID = atoi(szUid);
+	if (nID < 1)
+		return;
+
+	CPackOut* pack = new CPackOut;
+	(*pack) << CMD_GET_SELF_PUBLIC_IP_PORT;
+	(*pack) << nID;
+	(*pack) << GetLocalAddr();
+	(*pack) << 5500;
+
+	char* pBuf = NULL;
+	int nSize;
+	pack->GetContent(pBuf, nSize);
+	m_Sess.Send(pBuf, nSize, inet_addr("115.28.170.118"), 8800);
+
+	delete pack;
+	pack = NULL;
 }
